@@ -1,5 +1,8 @@
 # only index.html (and nothing sensitive) is uploaded as a static asset
 serve.py
+.wrangler
+*.map
+node_modules
 worker.js
 wrangler.toml
 render.yaml
