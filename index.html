@@ -1,0 +1,1802 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JobLink Placement Dashboard — Sept 2022</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; }
+img, svg, canvas { max-width: 100%; }
+</style>
+</head>
+<body>
+
+<style>
+  :root {
+    color-scheme: light;
+    --ground:        #fbfbfa;
+    --ground-deep:   #f2f2ef;
+    --surface:       #ffffff;
+    --surface-veil:  rgba(255,255,255,0.86);
+    --ink:           #14161a;
+    --ink-2:         #4e5158;
+    --ink-muted:     #7d8189;
+    --grid:          #e4e4e0;
+    --axis:          #c6c6c0;
+    --hairline:      rgba(20,22,26,0.10);
+    --series-1:      #2a78d6;
+    --series-1-soft: rgba(42,120,214,0.14);
+    --series-2:      #008300;
+    --rest:          #c2c4c2;
+    --good:          #0ca30c;
+    --warning:       #fab219;
+    --critical:      #d03b3b;
+    --mesh:          rgba(42,120,214,0.55);
+    --mesh-2:        rgba(20,22,26,0.16);
+    --shadow:        0 1px 2px rgba(20,22,26,0.05), 0 8px 24px rgba(20,22,26,0.05);
+
+    --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+    --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --ground:        #16181d;
+      --ground-deep:   #0e1013;
+      --surface:       #1c1f26;
+      --surface-veil:  rgba(28,31,38,0.82);
+      --ink:           #ffffff;
+      --ink-2:         #c2c5cc;
+      --ink-muted:     #898d96;
+      --grid:          #2b2f37;
+      --axis:          #3a3f49;
+      --hairline:      rgba(255,255,255,0.10);
+      --series-1:      #3987e5;
+      --series-1-soft: rgba(57,135,229,0.18);
+      --series-2:      #008300;
+      --rest:          #4a4f59;
+      --good:          #0ca30c;
+      --warning:       #fab219;
+      --critical:      #d03b3b;
+      --mesh:          rgba(57,135,229,0.85);
+      --mesh-2:        rgba(255,255,255,0.10);
+      --shadow:        0 1px 2px rgba(0,0,0,0.4), 0 8px 28px rgba(0,0,0,0.35);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground:        #16181d;
+    --ground-deep:   #0e1013;
+    --surface:       #1c1f26;
+    --surface-veil:  rgba(28,31,38,0.82);
+    --ink:           #ffffff;
+    --ink-2:         #c2c5cc;
+    --ink-muted:     #898d96;
+    --grid:          #2b2f37;
+    --axis:          #3a3f49;
+    --hairline:      rgba(255,255,255,0.10);
+    --series-1:      #3987e5;
+    --series-1-soft: rgba(57,135,229,0.18);
+    --series-2:      #008300;
+    --rest:          #4a4f59;
+    --mesh:          rgba(57,135,229,0.85);
+    --mesh-2:        rgba(255,255,255,0.10);
+    --shadow:        0 1px 2px rgba(0,0,0,0.4), 0 8px 28px rgba(0,0,0,0.35);
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* ---- 3D background ---- */
+  #mesh-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    display: block;
+    pointer-events: none;
+  }
+  #mesh-canvas::after { content: ""; }
+  /* Sits between the mesh and the content: knocks the mesh back without erasing it. */
+  .veil {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse 70% 30% at 50% 34%,
+        color-mix(in srgb, var(--series-1) 16%, transparent) 0%,
+        transparent 72%),
+      linear-gradient(to bottom,
+        var(--ground) 0%,
+        color-mix(in srgb, var(--ground) 52%, transparent) 20%,
+        color-mix(in srgb, var(--ground) 22%, transparent) 55%,
+        color-mix(in srgb, var(--ground) 30%, transparent) 100%);
+  }
+
+  .page {
+    position: relative;
+    z-index: 2;
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: var(--s6) var(--s5) var(--s7);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s5);
+  }
+
+  /* ---- header ---- */
+  .masthead { display: flex; flex-direction: column; gap: var(--s2); }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+  h1 {
+    font-size: clamp(26px, 3.4vw, 38px);
+    font-weight: 620;
+    letter-spacing: -0.022em;
+    text-wrap: balance;
+    margin: 0;
+  }
+  .standfirst {
+    color: var(--ink-2);
+    max-width: 66ch;
+    font-size: 15px;
+  }
+
+  /* ---- filters ---- */
+  .rail {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--surface-veil);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--hairline);
+    border-radius: 10px;
+    padding: var(--s3) var(--s4);
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--s3) var(--s4);
+  }
+  .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1 1 165px; }
+  .field-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+  button:focus-visible, input:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--series-1);
+    outline-offset: 2px;
+  }
+
+  /* ---- multi-select ---- */
+  .ms { position: relative; }
+  .ms-btn {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: 7px;
+    padding: 7px 9px;
+    width: 100%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-align: left;
+  }
+  .ms-btn:hover { border-color: var(--series-1); }
+  .ms-btn[aria-expanded="true"] { border-color: var(--series-1); }
+  .ms-val { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ms-btn.is-set .ms-val { font-weight: 600; }
+  .ms-n {
+    flex: none;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--surface);
+    background: var(--series-1);
+    border-radius: 999px;
+    padding: 1px 6px;
+  }
+  .ms-caret { flex: none; width: 7px; height: 7px; border-right: 1.5px solid var(--ink-muted); border-bottom: 1.5px solid var(--ink-muted); transform: translateY(-2px) rotate(45deg); }
+  .ms-btn[aria-expanded="true"] .ms-caret { transform: translateY(1px) rotate(-135deg); }
+
+  .ms-pop {
+    position: absolute;
+    z-index: 40;
+    top: calc(100% + 5px);
+    left: 0;
+    min-width: 100%;
+    width: max-content;
+    max-width: 300px;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    padding: var(--s2);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ms-pop[hidden] { display: none; }
+  .ms-head {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
+    padding: 2px 6px 6px;
+    border-bottom: 1px solid var(--hairline);
+    margin-bottom: 3px;
+  }
+  .ms-head span {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--ink-muted);
+  }
+  .ms-clear {
+    font-family: var(--sans); font-size: 11px; font-weight: 550;
+    color: var(--series-1); background: none; border: 0; cursor: pointer; padding: 2px 4px;
+    border-radius: 4px;
+  }
+  .ms-clear:hover { background: var(--series-1-soft); }
+  .ms-clear[disabled] { color: var(--ink-muted); cursor: default; background: none; }
+  .ms-list { display: flex; flex-direction: column; max-height: 260px; overflow-y: auto; }
+  .ms-opt {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px; border-radius: 5px; cursor: pointer;
+    font-size: 13px; color: var(--ink);
+  }
+  .ms-opt:hover { background: var(--series-1-soft); }
+  .ms-opt input { accent-color: var(--series-1); width: 14px; height: 14px; flex: none; cursor: pointer; }
+  .ms-opt-l { flex: 1; min-width: 0; }
+  .ms-opt-n {
+    font-family: var(--mono); font-size: 11px; color: var(--ink-muted);
+    font-variant-numeric: tabular-nums; flex: none;
+  }
+  /* an option excluded by the OTHER filters currently applied */
+  .ms-opt.is-void .ms-opt-l, .ms-opt.is-void .ms-opt-n { color: var(--ink-muted); }
+
+  /* ---- active filter chips ---- */
+  .chips { display: flex; flex-wrap: wrap; gap: var(--s2); }
+  .chips:empty { display: none; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--ink);
+    background: var(--surface-veil);
+    border: 1px solid var(--hairline);
+    border-radius: 999px;
+    padding: 3px 4px 3px 10px;
+  }
+  .chip-k { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-muted); }
+  .chip-x {
+    border: 0; background: none; cursor: pointer;
+    color: var(--ink-muted); font-size: 13px; line-height: 1;
+    padding: 2px 5px; border-radius: 999px;
+  }
+  .chip-x:hover { background: var(--series-1-soft); color: var(--ink); }
+  .rail-actions { display: flex; align-items: center; gap: var(--s3); flex: 0 0 auto; }
+  .count {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-2);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .count b { color: var(--ink); font-weight: 620; }
+  button.ghost {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 550;
+    color: var(--ink-2);
+    background: transparent;
+    border: 1px solid var(--hairline);
+    border-radius: 7px;
+    padding: 7px 12px;
+    cursor: pointer;
+  }
+  button.ghost:hover { color: var(--ink); border-color: var(--axis); background: var(--series-1-soft); }
+
+  /* ---- KPI ---- */
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--s3);
+  }
+  .kpi {
+    background: var(--surface-veil);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--hairline);
+    border-radius: 10px;
+    padding: var(--s4);
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .kpi-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+  .kpi-value {
+    font-size: 30px;
+    font-weight: 620;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+  .kpi-note { font-size: 12px; color: var(--ink-2); }
+
+  /* ---- chart grid ---- */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: var(--s3);
+    align-items: start; /* cards hug their content instead of stretching to the tallest in the row */
+  }
+  .card {
+    background: var(--surface-veil);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--hairline);
+    border-radius: 10px;
+    padding: var(--s4);
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s3);
+    min-width: 0;
+  }
+  .span-4 { grid-column: span 4; }
+  .span-6 { grid-column: span 6; }
+  .span-8 { grid-column: span 8; }
+  .span-12 { grid-column: span 12; }
+  @media (max-width: 900px) {
+    .span-4, .span-6, .span-8 { grid-column: span 12; }
+  }
+  .card-head { display: flex; flex-direction: column; gap: 2px; }
+  .card-title { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
+  .card-sub { font-size: 12px; color: var(--ink-muted); }
+  .plot { width: 100%; overflow: visible; }
+  .plot text { font-family: var(--mono); }
+  .empty {
+    font-size: 13px;
+    color: var(--ink-muted);
+    padding: var(--s5) 0;
+    text-align: center;
+  }
+
+  .legend { display: flex; flex-wrap: wrap; gap: var(--s3); }
+  .legend-item {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--ink-2);
+    font-family: var(--mono);
+  }
+  .swatch { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+
+  /* ---- tooltip ---- */
+  #tip {
+    position: fixed;
+    z-index: 60;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .1s;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: 7px;
+    box-shadow: var(--shadow);
+    padding: 8px 10px;
+    font-size: 12px;
+    color: var(--ink);
+    max-width: 260px;
+  }
+  #tip .tip-t { font-weight: 620; margin-bottom: 3px; }
+  #tip .tip-r { color: var(--ink-2); font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  /* ---- table ---- */
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  th, td {
+    text-align: left;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--hairline);
+    white-space: nowrap;
+  }
+  th {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    font-weight: 500;
+    position: sticky; top: 0;
+    background: var(--surface);
+  }
+  td { color: var(--ink-2); }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink); }
+  .pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+  }
+  .pill-yes { color: var(--good); border-color: color-mix(in srgb, var(--good) 40%, transparent); background: color-mix(in srgb, var(--good) 10%, transparent); }
+  .pill-no { color: var(--ink-muted); border-color: var(--hairline); }
+
+  details.table-block > summary {
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 550;
+    color: var(--ink-2);
+    list-style: none;
+    display: flex; align-items: center; gap: 7px;
+    padding: 2px 0;
+  }
+  details.table-block > summary::-webkit-details-marker { display: none; }
+  details.table-block > summary::before {
+    content: "▸"; color: var(--ink-muted); font-size: 10px;
+    transition: transform .15s;
+  }
+  details.table-block[open] > summary::before { transform: rotate(90deg); }
+  details.table-block > summary:hover { color: var(--ink); }
+
+  footer {
+    font-size: 12px;
+    color: var(--ink-muted);
+    border-top: 1px solid var(--hairline);
+    padding-top: var(--s4);
+    display: flex; flex-direction: column; gap: var(--s1);
+  }
+
+  /* ---- assistant (only mounted when the local server is present) ---- */
+  #fab {
+    position: fixed;
+    right: 20px; bottom: 20px;
+    z-index: 70;
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    border: 1px solid var(--hairline);
+    background: var(--series-1);
+    color: #fff;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.28);
+    display: none;
+    align-items: center; justify-content: center;
+  }
+  #fab.on { display: flex; }
+  #fab svg { width: 22px; height: 22px; fill: none; stroke: #fff; stroke-width: 2; }
+  #fab:hover { filter: brightness(1.08); }
+
+  #chat {
+    position: fixed;
+    right: 20px; bottom: 84px;
+    z-index: 70;
+    width: min(392px, calc(100vw - 40px));
+    height: min(580px, calc(100vh - 120px));
+    background: var(--surface-veil);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--hairline);
+    border-radius: 12px;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.34);
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #chat.on { display: flex; }
+  #chat.drag { outline: 2px dashed var(--series-1); outline-offset: -6px; }
+
+  .chat-head {
+    display: flex; align-items: center; gap: var(--s2);
+    padding: 10px var(--s3);
+    border-bottom: 1px solid var(--hairline);
+    flex: none;
+  }
+  .chat-title { font-size: 13px; font-weight: 620; flex: 1; }
+  .chat-model {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.06em;
+    color: var(--ink-muted); text-transform: uppercase;
+  }
+  .chat-x {
+    border: 0; background: none; cursor: pointer; color: var(--ink-muted);
+    font-size: 17px; line-height: 1; padding: 3px 6px; border-radius: 5px;
+  }
+  .chat-x:hover { background: var(--series-1-soft); color: var(--ink); }
+
+  .chat-log {
+    flex: 1; overflow-y: auto;
+    padding: var(--s3);
+    display: flex; flex-direction: column; gap: var(--s3);
+  }
+  .chat-empty {
+    color: var(--ink-muted); font-size: 12.5px; line-height: 1.6;
+    margin: auto 0; text-align: center; padding: var(--s4) var(--s2);
+  }
+  .chat-empty b { color: var(--ink-2); font-weight: 600; }
+  .chat-empty kbd {
+    font-family: var(--mono); font-size: 10px;
+    border: 1px solid var(--hairline); border-radius: 4px;
+    padding: 1px 4px; color: var(--ink-2);
+  }
+
+  .msg { display: flex; flex-direction: column; gap: 5px; max-width: 90%; }
+  .msg.user { align-self: flex-end; align-items: flex-end; }
+  .msg.bot { align-self: flex-start; }
+  .msg-b {
+    font-size: 13px; line-height: 1.55;
+    padding: 8px 11px; border-radius: 10px;
+    overflow-wrap: anywhere;
+  }
+  .msg.user .msg-b { background: var(--series-1); color: #fff; border-bottom-right-radius: 3px; }
+  .msg.bot .msg-b { background: var(--surface); border: 1px solid var(--hairline); color: var(--ink); border-bottom-left-radius: 3px; }
+  .msg.bot .msg-b code {
+    font-family: var(--mono); font-size: 11.5px;
+    background: var(--series-1-soft); padding: 1px 4px; border-radius: 3px;
+  }
+  .msg.err .msg-b {
+    background: color-mix(in srgb, var(--critical) 12%, transparent);
+    border-color: color-mix(in srgb, var(--critical) 45%, transparent);
+    color: var(--ink);
+  }
+  .msg img.shot {
+    max-width: 170px; border-radius: 7px;
+    border: 1px solid var(--hairline); display: block;
+  }
+  .msg-meta { font-family: var(--mono); font-size: 9px; color: var(--ink-muted); }
+
+  .dots { display: inline-flex; gap: 3px; padding: 3px 0; }
+  .dots i {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--ink-muted); animation: blink 1.2s infinite;
+  }
+  .dots i:nth-child(2) { animation-delay: .18s; }
+  .dots i:nth-child(3) { animation-delay: .36s; }
+  @keyframes blink { 0%, 60%, 100% { opacity: .25 } 30% { opacity: 1 } }
+
+  .chat-foot { flex: none; border-top: 1px solid var(--hairline); padding: var(--s2) var(--s3) var(--s3); }
+  .attach-row { display: flex; align-items: center; gap: var(--s2); padding-bottom: var(--s2); }
+  .attach-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--series-1-soft); border: 1px solid var(--hairline);
+    border-radius: 6px; padding: 3px 4px 3px 7px;
+    font-family: var(--mono); font-size: 10px; color: var(--ink-2);
+    max-width: 100%;
+  }
+  .attach-chip img { width: 22px; height: 22px; object-fit: cover; border-radius: 3px; }
+  .attach-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chat-form { display: flex; align-items: flex-end; gap: 6px; }
+  .chat-in {
+    flex: 1;
+    font-family: var(--sans); font-size: 13px; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--hairline);
+    border-radius: 8px; padding: 8px 9px;
+    resize: none; max-height: 96px; min-height: 36px; line-height: 1.4;
+  }
+  .chat-in:focus-visible { outline: 2px solid var(--series-1); outline-offset: 1px; }
+  .icon-btn {
+    flex: none; width: 36px; height: 36px;
+    border: 1px solid var(--hairline); border-radius: 8px;
+    background: var(--surface); color: var(--ink-2);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .icon-btn:hover:not([disabled]) { border-color: var(--series-1); color: var(--series-1); background: var(--series-1-soft); }
+  .icon-btn[disabled] { opacity: .45; cursor: default; }
+  .icon-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .icon-btn.send { background: var(--series-1); border-color: var(--series-1); color: #fff; }
+  .icon-btn.send:hover:not([disabled]) { filter: brightness(1.08); color: #fff; }
+
+  @media (max-width: 560px) {
+    #chat { right: 10px; left: 10px; width: auto; bottom: 78px; }
+    #fab { right: 12px; bottom: 12px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+    .dots i { opacity: .6; }
+  }
+</style>
+
+<canvas id="mesh-canvas" aria-hidden="true"></canvas>
+<div class="veil" aria-hidden="true"></div>
+<div id="tip" role="status" aria-live="polite"></div>
+
+<div class="page">
+  <header class="masthead">
+    <div class="eyebrow">JobLink · Reporting period Sept 2022</div>
+    <h1>Employment placements across the JobLink participant cohort</h1>
+    <p class="standfirst">
+      Every participant enrolled in JobLink, matched against the placement record. Pick any number of
+      values in each filter — they widen the cohort within a filter and narrow it across filters — to
+      see how placement rate, wages, and job quality shift.
+    </p>
+  </header>
+
+  <section class="rail" aria-label="Cohort filters">
+    <div class="field">
+      <span class="field-label" id="lab-subsidy">Subsidy type</span>
+      <div class="ms" data-key="subsidy" data-label="Subsidy type"></div>
+    </div>
+    <div class="field">
+      <span class="field-label" id="lab-race">Race</span>
+      <div class="ms" data-key="race" data-label="Race"></div>
+    </div>
+    <div class="field">
+      <span class="field-label" id="lab-member">Household role</span>
+      <div class="ms" data-key="member" data-label="Household role"></div>
+    </div>
+    <div class="field">
+      <span class="field-label" id="lab-disability">Verified disability</span>
+      <div class="ms" data-key="disability" data-label="Verified disability"></div>
+    </div>
+    <div class="field">
+      <span class="field-label" id="lab-ageband">Age band</span>
+      <div class="ms" data-key="ageBand" data-label="Age band"></div>
+    </div>
+    <div class="rail-actions">
+      <span class="count" id="count"></span>
+      <button class="ghost" id="reset" type="button">Reset all</button>
+    </div>
+  </section>
+  <div class="chips" id="chips" aria-live="polite"></div>
+
+  <section class="kpis" id="kpis" aria-label="Cohort summary"></section>
+
+  <section class="grid">
+    <div class="card span-4">
+      <div class="card-head">
+        <div class="card-title">Placement status</div>
+        <div class="card-sub">Share of the filtered cohort placed in a job</div>
+      </div>
+      <div id="c-status"></div>
+    </div>
+
+    <div class="card span-8">
+      <div class="card-head">
+        <div class="card-title">Hourly wage distribution</div>
+        <div class="card-sub">Placed participants, by starting wage</div>
+      </div>
+      <div id="c-wage"></div>
+    </div>
+
+    <div class="card span-6">
+      <div class="card-head">
+        <div class="card-title">Placements by industry</div>
+        <div class="card-sub">Where placed participants went to work</div>
+      </div>
+      <div id="c-industry"></div>
+    </div>
+
+    <div class="card span-6">
+      <div class="card-head">
+        <div class="card-title">Median wage by industry</div>
+        <div class="card-sub">Hourly, industries with 2+ placements</div>
+      </div>
+      <div id="c-indwage"></div>
+    </div>
+
+    <div class="card span-6">
+      <div class="card-head">
+        <div class="card-title">Placement rate by race</div>
+        <div class="card-sub">Placed as a share of enrolled, groups with 2+ participants</div>
+      </div>
+      <div id="c-race"></div>
+    </div>
+
+    <div class="card span-6">
+      <div class="card-head">
+        <div class="card-title">Placement rate by age band</div>
+        <div class="card-sub">Placed as a share of enrolled</div>
+      </div>
+      <div id="c-age"></div>
+    </div>
+
+    <div class="card span-6">
+      <div class="card-head">
+        <div class="card-title">Placement starts by year</div>
+        <div class="card-sub">When placements began</div>
+      </div>
+      <div id="c-year"></div>
+    </div>
+
+    <div class="card span-6">
+      <div class="card-head">
+        <div class="card-title">Job quality</div>
+        <div class="card-sub">Share of placements meeting each condition</div>
+      </div>
+      <div id="c-quality"></div>
+    </div>
+
+    <div class="card span-12">
+      <details class="table-block">
+        <summary>Table view — filtered participants</summary>
+        <div class="table-wrap" id="c-table"></div>
+      </details>
+    </div>
+  </section>
+
+  <footer>
+    <div>Source: JobLink_Participants_Sept 2022.xlsx (104 enrolled) joined to Job Placements_Sept 2022.xlsx (49 placements) on participant name. Names in the source data are already anonymized.</div>
+    <div>Wages are starting hourly rates as recorded at placement; they are not inflation-adjusted and span 2019–2022.</div>
+  </footer>
+</div>
+
+<button id="fab" type="button" aria-label="Open the chart assistant" aria-expanded="false">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-8 8H8l-5 3 1.2-4.2A8 8 0 1 1 21 12Z" stroke-linejoin="round"/></svg>
+</button>
+
+<section id="chat" aria-label="Chart assistant">
+  <div class="chat-head">
+    <span class="chat-title">Chart assistant</span>
+    <span class="chat-model" id="chat-model"></span>
+    <button class="chat-x" id="chat-x" type="button" aria-label="Close the assistant">×</button>
+  </div>
+  <div class="chat-log" id="chat-log"></div>
+  <div class="chat-foot">
+    <div class="attach-row" id="attach-row" hidden></div>
+    <form class="chat-form" id="chat-form">
+      <input type="file" id="chat-file" accept="image/*" hidden>
+      <button class="icon-btn" id="chat-attach" type="button" aria-label="Attach a screenshot" title="Attach a screenshot">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.4 11.05 12.25 20.2a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.67 3.67 0 1 1 5.18 5.18l-9.2 9.19a1.83 1.83 0 0 1-2.59-2.59l8.49-8.48"/></svg>
+      </button>
+      <textarea class="chat-in" id="chat-in" rows="1" placeholder="Ask about a chart…" aria-label="Your question"></textarea>
+      <button class="icon-btn send" id="chat-send" type="submit" aria-label="Send" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+      </button>
+    </form>
+  </div>
+</section>
+
+<script>
+const DATA = [{"name": "Fake, A", "zip": "98122", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 55, "disability": "Yes", "placed": false}, {"name": "Fake, B", "zip": "98104", "subsidy": "Project Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 22, "disability": "No", "placed": true, "wage": 23.0, "hours": "32 Hours or More", "fulltime": true, "temp": "No", "title": "Medical Assistant Registered", "industry": "Health Care", "healthcare": "No", "startDate": "2022-08-08", "startYear": 2022, "active": true, "endReason": null}, {"name": "Fake, C", "zip": "98108", "subsidy": "Tenant Based Voucher", "community": "Holly Park", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 49, "disability": "No", "placed": false}, {"name": "Fake, D", "zip": "98117", "subsidy": "Project Based Voucher", "community": "HCV", "member": "Spouse", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 39, "disability": "No", "placed": true, "wage": 18.49, "hours": "32 Hours or More", "fulltime": true, "temp": "No", "title": "Customer Service Agent", "industry": "Transportation, Distribution and Logistics (includes warehouse)", "healthcare": "Yes", "startDate": "2022-08-29", "startYear": 2022, "active": true, "endReason": null}, {"name": "Fake, E", "zip": "98118", "subsidy": "Project Based Voucher", "community": "HCV", "member": "Other Adult", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 25, "disability": "No", "placed": true, "wage": 16.6, "hours": "Less Than 32 Hours", "fulltime": false, "temp": "No", "title": "Care Provider", "industry": "Health Care", "healthcare": "No", "startDate": "2019-04-04", "startYear": 2019, "active": true, "endReason": null}, {"name": "Fake, F", "zip": "98118", "subsidy": "Project Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 46, "disability": "No", "placed": false}, {"name": "Fake, G", "zip": "98144", "subsidy": "Project Based Voucher", "community": "HCV", "member": "Full Time Student 18+", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 19, "disability": "No", "placed": false}, {"name": "Fake, H", "zip": "98108", "subsidy": "Tenant Based Voucher", "community": "Holly Park", "member": "Full Time Student 18+", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 22, "disability": "No", "placed": true, "wage": 18.25, "hours": "Less Than 32 Hours", "fulltime": false, "temp": "No", "title": "Care Giver", "industry": "Health Care", "healthcare": "No", "startDate": "2019-04-15", "startYear": 2019, "active": true, "endReason": null}, {"name": "Fake, I", "zip": "98108", "subsidy": "Tenant Based Voucher", "community": "Rainier Vista", "member": "Other Adult", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 21, "disability": "No", "placed": false}, {"name": "Fake, J", "zip": "98126", "subsidy": "Tenant Based Voucher", "community": "High Point", "member": "Full Time Student 18+", "race": "Asian", "ethnicity": "Non-Hispanic", "age": 21, "disability": "No", "placed": true, "wage": 24.0, "hours": "32 Hours or More", "fulltime": true, "temp": "No", "title": "Resident Communications Liaison", "industry": "Other nonprofit / social services", "healthcare": "Yes", "startDate": "2022-03-01", "startYear": 2022, "active": true, "endReason": null}, {"name": "Fake, K", "zip": "98106", "subsidy": "Tenant Based Voucher", "community": "High Point", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 57, "disability": "Yes", "placed": true, "wage": 26.16, "hours": "32 Hours or More", "fulltime": true, "temp": "No", "title": "Teacher", "industry": "Education and Child-Care", "healthcare": "Yes", "startDate": "2022-02-01", "startYear": 2022, "active": true, "endReason": null}, {"name": "Fake, L", "zip": "98106", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "American Indian/Alaska Native", "ethnicity": "Non-Hispanic", "age": 51, "disability": "Yes", "placed": false}, {"name": "Fake, M", "zip": "98115", "subsidy": "Project Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 50, "disability": "Yes", "placed": false}, {"name": "Fake, N", "zip": "98118", "subsidy": "Tenant Based Voucher", "community": "South Shore Court", "member": "Head of Household", "race": "White", "ethnicity": "Non-Hispanic", "age": 40, "disability": "No", "placed": false}, {"name": "Fake, O", "zip": "98104", "subsidy": "Tenant Based Voucher", "community": "Ritz Apartments", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 40, "disability": "No", "placed": false}, {"name": "Fake, P", "zip": "98121", "subsidy": "Project Based Voucher", "community": "HCV", "member": "Head of Household", "race": "White", "ethnicity": "Hispanic", "age": 65, "disability": "Yes", "placed": false}, {"name": "Fake, Q", "zip": "98102", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Asian", "ethnicity": "Non-Hispanic", "age": 57, "disability": "Yes", "placed": true, "wage": 18.0, "hours": "Less Than 32 Hours", "fulltime": false, "temp": "No", "title": "warehouse", "industry": "Service Sector (includes retail, restaurant and hospitality)", "healthcare": "No", "startDate": "2021-11-12", "startYear": 2021, "active": true, "endReason": null}, {"name": "Fake, R", "zip": "98106", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 46, "disability": "No", "placed": true, "wage": 23.21, "hours": "32 Hours or More", "fulltime": true, "temp": "No", "title": "Medical Assistant", "industry": "Health Care", "healthcare": "Yes", "startDate": "2021-01-15", "startYear": 2021, "active": true, "endReason": null}, {"name": "Fake, S", "zip": "98104", "subsidy": "Project Based Voucher", "community": "HCV", "member": "Head of Household", "race": "White", "ethnicity": "Non-Hispanic", "age": 54, "disability": "Yes", "placed": true, "wage": 17.3, "hours": "Less Than 32 Hours", "fulltime": false, "temp": "No", "title": "Covid Screener", "industry": "Health Care", "healthcare": "No", "startDate": "2021-08-17", "startYear": 2021, "active": true, "endReason": null}, {"name": "Fake, T", "zip": "98122", "subsidy": "Project Based Voucher", "community": "Kebero Court", "member": "Full Time Student 18+", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 22, "disability": "No", "placed": true, "wage": 18.96, "hours": "Less Than 32 Hours", "fulltime": false, "temp": "No", "title": "Homecare Provider", "industry": "Health Care", "healthcare": "Yes", "startDate": "2020-03-15", "startYear": 2020, "active": true, "endReason": null}, {"name": "Fake, U", "zip": "98118", "subsidy": "Project Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 40, "disability": "No", "placed": true, "wage": 17.27, "hours": "32 Hours or More", "fulltime": true, "temp": "No", "title": "Property Management Associate Trainee - SHA regular trainee position", "industry": "Other nonprofit / social services", "healthcare": "Yes", "startDate": "2022-06-10", "startYear": 2022, "active": true, "endReason": null}, {"name": "Fake, V", "zip": "98122", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 26, "disability": "Yes", "placed": false}, {"name": "Fake, W", "zip": "98122", "subsidy": "Project Based Voucher", "community": "Kebero Court", "member": "Full Time Student 18+", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 22, "disability": "No", "placed": false}, {"name": "Fake, X", "zip": "98126", "subsidy": "Tenant Based Voucher", "community": "High Point", "member": "Full Time Student 18+", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 26, "disability": "No", "placed": false}, {"name": "Fake, Y", "zip": "98108", "subsidy": "Tenant Based Voucher", "community": "Holly Park", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 34, "disability": "Yes", "placed": true, "wage": 27.5, "hours": "32 Hours or More", "fulltime": true, "temp": "No", "title": "Special Education Assistant", "industry": "Education and Child-Care", "healthcare": "Yes", "startDate": "2022-02-14", "startYear": 2022, "active": true, "endReason": null}, {"name": "Fake, Z", "zip": "98118", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 59, "disability": "Yes", "placed": false}, {"name": "False, A", "zip": "98125", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 53, "disability": "No", "placed": true, "wage": 26.42, "hours": "Less Than 32 Hours", "fulltime": false, "temp": "Yes", "title": "Temp assistant teacher", "industry": "Education and Child-Care", "healthcare": "Yes", "startDate": "2021-11-15", "startYear": 2021, "active": false, "endReason": "Job Change"}, {"name": "False, B", "zip": "98126", "subsidy": "Tenant Based Voucher", "community": "High Point", "member": "Spouse", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 39, "disability": "No", "placed": true, "wage": 23.25, "hours": "32 Hours or More", "fulltime": true, "temp": "No", "title": "Housekeeping", "industry": "Health Care", "healthcare": "Yes", "startDate": "2021-06-20", "startYear": 2021, "active": true, "endReason": null}, {"name": "False, C", "zip": "98118", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 38, "disability": "No", "placed": false}, {"name": "False, D", "zip": "98106", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 50, "disability": "No", "placed": false}, {"name": "False, E", "zip": "98101", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 24, "disability": "No", "placed": false}, {"name": "False, F", "zip": "98108", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 37, "disability": "No", "placed": true, "wage": 20.0, "hours": "Less Than 32 Hours", "fulltime": false, "temp": "No", "title": "Fuel Station Attendant", "industry": "Service Sector (includes retail, restaurant and hospitality)", "healthcare": "No", "startDate": "2022-07-03", "startYear": 2022, "active": true, "endReason": null}, {"name": "False, G", "zip": "98118", "subsidy": "Tenant Based Voucher", "community": "Holly Park", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 53, "disability": "No", "placed": true, "wage": 20.0, "hours": "32 Hours or More", "fulltime": true, "temp": "No", "title": "Facility Access Screener", "industry": "Health Care", "healthcare": "Yes", "startDate": "2021-08-30", "startYear": 2021, "active": true, "endReason": null}, {"name": "False, H", "zip": "98115", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 45, "disability": "No", "placed": true, "wage": 19.0, "hours": "Less Than 32 Hours", "fulltime": false, "temp": "Yes", "title": "concession", "industry": "Service Sector (includes retail, restaurant and hospitality)", "healthcare": "No", "startDate": "2022-07-29", "startYear": 2022, "active": true, "endReason": null}, {"name": "False, I", "zip": "98126", "subsidy": "Tenant Based Voucher", "community": "High Point", "member": "Spouse", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 44, "disability": "No", "placed": false}, {"name": "False, J", "zip": "98126", "subsidy": "Tax Credit", "community": "High Point", "member": "Other Adult", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 32, "disability": "No", "placed": false}, {"name": "False, K", "zip": "98118", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 26, "disability": "No", "placed": false}, {"name": "False, L", "zip": "98105", "subsidy": "Public Housing", "community": "University West", "member": "Head of Household", "race": "White", "ethnicity": "Non-Hispanic", "age": 51, "disability": "Yes", "placed": true, "wage": 19.0, "hours": "32 Hours or More", "fulltime": true, "temp": "No", "title": "Security Specialist", "industry": "Service Sector (includes retail, restaurant and hospitality)", "healthcare": "No", "startDate": "2021-10-15", "startYear": 2021, "active": false, "endReason": "Quit"}, {"name": "False, M", "zip": "98126", "subsidy": "Tenant Based Voucher", "community": "High Point", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 44, "disability": "No", "placed": true, "wage": 18.0, "hours": "Less Than 32 Hours", "fulltime": false, "temp": "Yes", "title": "Seasonal Associate", "industry": "Service Sector (includes retail, restaurant and hospitality)", "healthcare": "No", "startDate": "2022-04-22", "startYear": 2022, "active": true, "endReason": null}, {"name": "False, N", "zip": "98126", "subsidy": "Project Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 36, "disability": "No", "placed": false}, {"name": "False, O", "zip": "98105", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 40, "disability": "No", "placed": false}, {"name": "False, P", "zip": "98105", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 30, "disability": "Yes", "placed": false}, {"name": "False, Q", "zip": "98126", "subsidy": "Tenant Based Voucher", "community": "High Point", "member": "Other Adult", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 21, "disability": "Yes", "placed": false}, {"name": "False, R", "zip": "98126", "subsidy": "Public Housing", "community": "High Point", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 38, "disability": "No", "placed": true, "wage": 17.21, "hours": "32 Hours or More", "fulltime": true, "temp": "Yes", "title": "Assistant Property Manager Trainee - Joblink Academy trainee", "industry": "Other nonprofit / social services", "healthcare": "No", "startDate": "2022-04-01", "startYear": 2022, "active": false, "endReason": "Job Change"}, {"name": "False, S", "zip": "98126", "subsidy": "Project Based Voucher", "community": "High Point", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 71, "disability": "No", "placed": true, "wage": 32.81, "hours": "32 Hours or More", "fulltime": true, "temp": "No", "title": "Assurance Associate", "industry": "Business and Administration", "healthcare": "Yes", "startDate": "2021-10-17", "startYear": 2021, "active": true, "endReason": null}, {"name": "False, T", "zip": "98108", "subsidy": "Tenant Based Voucher", "community": "Rainier Vista", "member": "Other Adult", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 21, "disability": "No", "placed": true, "wage": 17.27, "hours": "Less Than 32 Hours", "fulltime": false, "temp": "No", "title": "Employee Training Participant", "industry": "Other nonprofit / social services", "healthcare": "No", "startDate": "2022-05-18", "startYear": 2022, "active": true, "endReason": null}, {"name": "False, U", "zip": "98108", "subsidy": "Tenant Based Voucher", "community": "Rainier Vista", "member": "Other Adult", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 20, "disability": "No", "placed": true, "wage": 21.0, "hours": "Less Than 32 Hours", "fulltime": false, "temp": "Yes", "title": "Security Guard", "industry": "Service Sector (includes retail, restaurant and hospitality)", "healthcare": "No", "startDate": "2022-07-01", "startYear": 2022, "active": true, "endReason": null}, {"name": "False, V", "zip": "98118", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 58, "disability": "No", "placed": true, "wage": 22.0, "hours": "32 Hours or More", "fulltime": true, "temp": "Yes", "title": "Community Builder Trainee", "industry": "Other nonprofit / social services", "healthcare": "No", "startDate": "2022-08-22", "startYear": 2022, "active": true, "endReason": null}, {"name": "False, W", "zip": "98126", "subsidy": "Project Based Voucher", "community": "High Point", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 41, "disability": "No", "placed": false}, {"name": "False, X", "zip": "98118", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Spouse", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 38, "disability": "No", "placed": true, "wage": 19.0, "hours": "32 Hours or More", "fulltime": true, "temp": "No", "title": "Driver", "industry": "Transportation, Distribution and Logistics (includes warehouse)", "healthcare": "No", "startDate": "2022-10-16", "startYear": 2022, "active": true, "endReason": null}, {"name": "False, Y", "zip": "98126", "subsidy": "Project Based Voucher", "community": "High Point", "member": "Head of Household", "race": "White", "ethnicity": "Non-Hispanic", "age": 45, "disability": "No", "placed": false}, {"name": "False, Z", "zip": "98126", "subsidy": "Project Based Voucher", "community": "High Point", "member": "Co-Head", "race": "White", "ethnicity": "Non-Hispanic", "age": 45, "disability": "No", "placed": false}, {"name": "Sample, A", "zip": "98118", "subsidy": "Tenant Based Voucher", "community": "Othello Properties", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 35, "disability": "No", "placed": false}, {"name": "Sample, B", "zip": "98108", "subsidy": "Project Based Voucher", "community": "Tamarack Place", "member": "Full Time Student 18+", "race": "Asian", "ethnicity": "Non-Hispanic", "age": 22, "disability": "No", "placed": false}, {"name": "Sample, C", "zip": "98103", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "White", "ethnicity": "Non-Hispanic", "age": 69, "disability": "Yes", "placed": false}, {"name": "Sample, D", "zip": "98118", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 56, "disability": "No", "placed": false}, {"name": "Sample, E", "zip": "98122", "subsidy": "Project Based Voucher", "community": "HCV", "member": "Head of Household", "race": "White", "ethnicity": "Non-Hispanic", "age": 39, "disability": "No", "placed": false}, {"name": "Sample, F", "zip": "98122", "subsidy": "Project Based Voucher", "community": "Kebero Court", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 50, "disability": "Yes", "placed": false}, {"name": "Sample, G", "zip": "98133", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 34, "disability": "No", "placed": true, "wage": 19.0, "hours": "32 Hours or More", "fulltime": true, "temp": "Yes", "title": "Driver", "industry": "Transportation, Distribution and Logistics (includes warehouse)", "healthcare": "No", "startDate": "2021-09-12", "startYear": 2021, "active": false, "endReason": "Job Change"}, {"name": "Sample, H", "zip": "98144", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Spouse", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 46, "disability": "No", "placed": true, "wage": 21.0, "hours": "32 Hours or More", "fulltime": true, "temp": "No", "title": "Delivery Driver", "industry": "Transportation, Distribution and Logistics (includes warehouse)", "healthcare": "No", "startDate": "2022-07-18", "startYear": 2022, "active": true, "endReason": null}, {"name": "Sample, I", "zip": "98144", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 39, "disability": "No", "placed": true, "wage": 19.0, "hours": "32 Hours or More", "fulltime": true, "temp": "No", "title": "Customer Service Professional", "industry": "Health Care", "healthcare": "Yes", "startDate": "2022-06-13", "startYear": 2022, "active": true, "endReason": null}, {"name": "Sample, J", "zip": "98144", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 70, "disability": "Yes", "placed": true, "wage": 20.0, "hours": "Less Than 32 Hours", "fulltime": false, "temp": "No", "title": "Member Services Administrator", "industry": "Other nonprofit / social services", "healthcare": "Yes", "startDate": "2022-03-12", "startYear": 2022, "active": true, "endReason": null}, {"name": "Sample, K", "zip": "98108", "subsidy": "Public Housing", "community": "New Holly", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 59, "disability": "No", "placed": true, "wage": 25.0, "hours": "32 Hours or More", "fulltime": true, "temp": "Yes", "title": "Driver", "industry": "Transportation, Distribution and Logistics (includes warehouse)", "healthcare": "No", "startDate": "2020-07-07", "startYear": 2020, "active": false, "endReason": "Laid Off"}, {"name": "Sample, L", "zip": "98126", "subsidy": "Project Based Voucher", "community": "High Point", "member": "Head of Household", "race": "Black/African-American;Native Hawaiian/Other Pacific Islander", "ethnicity": "Non-Hispanic", "age": 37, "disability": "No", "placed": true, "wage": 23.26, "hours": "32 Hours or More", "fulltime": true, "temp": "Yes", "title": "Property Assistant", "industry": "Other nonprofit / social services", "healthcare": "Yes", "startDate": "2022-01-01", "startYear": 2022, "active": true, "endReason": null}, {"name": "Sample, M", "zip": "98144", "subsidy": "Project Based Voucher", "community": "Norman Street Apts", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 40, "disability": "No", "placed": false}, {"name": "Sample, N", "zip": "98126", "subsidy": "Project Based Voucher", "community": "High Point", "member": "Head of Household", "race": "American Indian/Alaska Native", "ethnicity": "Non-Hispanic", "age": 39, "disability": "No", "placed": true, "wage": 27.73, "hours": "Less Than 32 Hours", "fulltime": false, "temp": "No", "title": "Special Education Assistant", "industry": "Education and Child-Care", "healthcare": "Yes", "startDate": "2022-03-15", "startYear": 2022, "active": true, "endReason": null}, {"name": "Sample, O", "zip": "98178", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 46, "disability": "No", "placed": false}, {"name": "Sample, P", "zip": "98108", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Other Adult", "race": "White", "ethnicity": "Non-Hispanic", "age": 20, "disability": "No", "placed": false}, {"name": "Sample, Q", "zip": "98109", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 29, "disability": "No", "placed": true, "wage": 20.0, "hours": "Less Than 32 Hours", "fulltime": false, "temp": "No", "title": "Associate/Parking Lot Attendant", "industry": "Service Sector (includes retail, restaurant and hospitality)", "healthcare": "No", "startDate": "2022-05-18", "startYear": 2022, "active": true, "endReason": null}, {"name": "Sample, R", "zip": "98117", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "White", "ethnicity": "Non-Hispanic", "age": 32, "disability": "No", "placed": true, "wage": 19.5, "hours": "32 Hours or More", "fulltime": true, "temp": "No", "title": "Security Guard", "industry": "Service Sector (includes retail, restaurant and hospitality)", "healthcare": "No", "startDate": "2021-08-11", "startYear": 2021, "active": true, "endReason": null}, {"name": "Sample, S", "zip": "98122", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Native Hawaiian/Other Pacific Islander", "ethnicity": "Hispanic", "age": 32, "disability": "No", "placed": true, "wage": 17.27, "hours": "Less Than 32 Hours", "fulltime": false, "temp": "No", "title": "Stadium Cleaner", "industry": "Service Sector (includes retail, restaurant and hospitality)", "healthcare": "No", "startDate": "2022-06-11", "startYear": 2022, "active": true, "endReason": null}, {"name": "Sample, T", "zip": "98126", "subsidy": "Project Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 38, "disability": "No", "placed": false}, {"name": "Sample, U", "zip": "98126", "subsidy": "Tenant Based Voucher", "community": "High Point", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 48, "disability": "No", "placed": false}, {"name": "Sample, V", "zip": "98104", "subsidy": "Project Based Voucher", "community": "Raven Terrace", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 52, "disability": "No", "placed": false}, {"name": "Sample, W", "zip": "98105", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 45, "disability": "Yes", "placed": false}, {"name": "Sample, X", "zip": "98125", "subsidy": "Project Based Voucher", "community": "Spruce St Properties", "member": "Head of Household", "race": "Native Hawaiian/Other Pacific Islander", "ethnicity": "Non-Hispanic", "age": 37, "disability": "Yes", "placed": false}, {"name": "Sample, Y", "zip": "98108", "subsidy": "Project Based Voucher", "community": "HCV Scattered Sites PBV", "member": "Full Time Student 18+", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 25, "disability": "No", "placed": false}, {"name": "Sample, Z", "zip": "98118", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Asian", "ethnicity": "Non-Hispanic", "age": 37, "disability": "No", "placed": true, "wage": 27.0, "hours": "Less Than 32 Hours", "fulltime": false, "temp": "No", "title": "Behavioral Tech", "industry": "Health Care", "healthcare": "No", "startDate": "2021-08-09", "startYear": 2021, "active": false, "endReason": "Quit"}, {"name": "Example, A", "zip": "98144", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 56, "disability": "No", "placed": true, "wage": 20.72, "hours": "Less Than 32 Hours", "fulltime": false, "temp": "No", "title": "Patient Service Representative", "industry": "Health Care", "healthcare": "No", "startDate": "2021-09-03", "startYear": 2021, "active": true, "endReason": null}, {"name": "Example, B", "zip": "98118", "subsidy": "Project Based Voucher", "community": "South Shore Court", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 45, "disability": "Yes", "placed": true, "wage": 15.5, "hours": "Less Than 32 Hours", "fulltime": false, "temp": "No", "title": "Caregiver", "industry": "Health Care", "healthcare": "No", "startDate": "2019-11-14", "startYear": 2019, "active": false, "endReason": "Quit"}, {"name": "Example, C", "zip": "98108", "subsidy": "Tenant Based Voucher", "community": "Rainier Vista", "member": "Full Time Student 18+", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 20, "disability": "No", "placed": false}, {"name": "Example, D", "zip": "98108", "subsidy": "Tenant Based Voucher", "community": "Rainier Vista", "member": "Full Time Student 18+", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 21, "disability": "No", "placed": false}, {"name": "Example, E", "zip": "98104", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "White;Asian", "ethnicity": "Non-Hispanic", "age": 40, "disability": "No", "placed": true, "wage": 25.0, "hours": "Less Than 32 Hours", "fulltime": false, "temp": "No", "title": "Resource Specialist", "industry": "Other nonprofit / social services", "healthcare": "No", "startDate": "2022-06-16", "startYear": 2022, "active": true, "endReason": null}, {"name": "Example, F", "zip": "98122", "subsidy": "Project Based Voucher", "community": "Kebero Court", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 34, "disability": "No", "placed": false}, {"name": "Example, G", "zip": "98118", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 45, "disability": "No", "placed": true, "wage": 24.0, "hours": "32 Hours or More", "fulltime": true, "temp": "No", "title": "DV Advocate", "industry": "Other nonprofit / social services", "healthcare": "Yes", "startDate": "2022-07-11", "startYear": 2022, "active": true, "endReason": null}, {"name": "Example, H", "zip": "98118", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Spouse", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 47, "disability": "No", "placed": false}, {"name": "Example, I", "zip": "98126", "subsidy": "Public Housing", "community": "High Point", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 39, "disability": "No", "placed": false}, {"name": "Example, J", "zip": "98104", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Full Time Student 18+", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 20, "disability": "No", "placed": true, "wage": 26.62, "hours": "32 Hours or More", "fulltime": true, "temp": "No", "title": "Office Assistant", "industry": "Education and Child-Care", "healthcare": "Yes", "startDate": "2021-11-23", "startYear": 2021, "active": true, "endReason": null}, {"name": "Example, K", "zip": "98104", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 42, "disability": "No", "placed": true, "wage": 20.0, "hours": "32 Hours or More", "fulltime": true, "temp": "Yes", "title": "Customer Service Specialist II Trainee", "industry": "Other nonprofit / social services", "healthcare": "No", "startDate": "2022-08-03", "startYear": 2022, "active": true, "endReason": null}, {"name": "Example, L", "zip": "98144", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 33, "disability": "No", "placed": true, "wage": 22.54, "hours": "32 Hours or More", "fulltime": true, "temp": "No", "title": "Customer Service II", "industry": "Other nonprofit / social services", "healthcare": "Yes", "startDate": "2022-06-10", "startYear": 2022, "active": true, "endReason": null}, {"name": "Example, M", "zip": "98109", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 56, "disability": "Yes", "placed": true, "wage": 17.5, "hours": "Less Than 32 Hours", "fulltime": false, "temp": "No", "title": "Teach Assistant", "industry": "Education and Child-Care", "healthcare": "No", "startDate": "2021-08-26", "startYear": 2021, "active": true, "endReason": null}, {"name": "Example, N", "zip": "98108", "subsidy": "Tenant Based Voucher", "community": "Holly Park", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 54, "disability": "No", "placed": false}, {"name": "Example, O", "zip": "98104", "subsidy": "Project Based Voucher", "community": "Hoa Mai Gardens", "member": "Full Time Student 18+", "race": "Asian", "ethnicity": "Non-Hispanic", "age": 23, "disability": "No", "placed": false}, {"name": "Example, P", "zip": "98125", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 65, "disability": "Yes", "placed": false}, {"name": "Example, Q", "zip": "98144", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Spouse", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 23, "disability": "No", "placed": false}, {"name": "Example, R", "zip": "98125", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "White", "ethnicity": "Non-Hispanic", "age": 26, "disability": "No", "placed": false}, {"name": "Example, S", "zip": "98144", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 44, "disability": "No", "placed": false}, {"name": "Example, T", "zip": "98104", "subsidy": "Tenant Based Voucher", "community": "Hoa Mai Gardens", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 39, "disability": "No", "placed": false}, {"name": "Example, U", "zip": "98122", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 68, "disability": "Yes", "placed": true, "wage": 17.0, "hours": "32 Hours or More", "fulltime": true, "temp": "No", "title": "Student Intern Researcher", "industry": "Health Care", "healthcare": "No", "startDate": "2021-06-21", "startYear": 2021, "active": true, "endReason": null}, {"name": "Example, V", "zip": "98106", "subsidy": "Tenant Based Voucher", "community": "HCV", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 26, "disability": "No", "placed": true, "wage": 22.0, "hours": "Less Than 32 Hours", "fulltime": false, "temp": "No", "title": "Customer Support Specialist", "industry": "Health Care", "healthcare": "No", "startDate": "2022-04-24", "startYear": 2022, "active": true, "endReason": null}, {"name": "Example, W", "zip": "98118", "subsidy": "Tenant Based Voucher", "community": "Othello Properties", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 40, "disability": "No", "placed": true, "wage": 16.69, "hours": "32 Hours or More", "fulltime": true, "temp": "No", "title": "Janitor", "industry": "Service Sector (includes retail, restaurant and hospitality)", "healthcare": "Yes", "startDate": "2020-01-09", "startYear": 2020, "active": true, "endReason": null}, {"name": "Example, X", "zip": "98144", "subsidy": "Project Based Voucher", "community": "Norman Street Apts", "member": "Full Time Student 18+", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 22, "disability": "No", "placed": true, "wage": 15.0, "hours": "Less Than 32 Hours", "fulltime": false, "temp": "Yes", "title": "Americorp Volunteer", "industry": "Other nonprofit / social services", "healthcare": "No", "startDate": "2022-02-05", "startYear": 2022, "active": false, "endReason": "Quit"}, {"name": "Example, Y", "zip": "98108", "subsidy": "Tenant Based Voucher", "community": "Tamarack Place", "member": "Spouse", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 42, "disability": "No", "placed": false}, {"name": "Example, Z", "zip": "98108", "subsidy": "Tenant Based Voucher", "community": "Tamarack Place", "member": "Head of Household", "race": "Black/African-American", "ethnicity": "Non-Hispanic", "age": 40, "disability": "Yes", "placed": true, "wage": 35.31, "hours": "32 Hours or More", "fulltime": true, "temp": "No", "title": "Registered Nurse", "industry": "Health Care", "healthcare": "Yes", "startDate": "2022-02-12", "startYear": 2022, "active": true, "endReason": null}];
+
+/* ---------------- 3D background: perspective wireframe terrain ---------------- */
+(function () {
+  const cv = document.getElementById('mesh-canvas');
+  const ctx = cv.getContext('2d');
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // A ground plane receding to a horizon: camera above it, looking forward down +z.
+  const COLS = 27, ROWS = 44;
+  const X_STEP = 210, Z_NEAR = 130, Z_STEP = 62;
+  const FOCAL = 700, CAM_Y = 175, FAR_FADE = 1750;
+  let W = 0, H = 0, dpr = 1, t = 0, horizon = 0;
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    cv.width = Math.floor(W * dpr); cv.height = Math.floor(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    horizon = H * 0.34;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // y is depth-below-camera (positive down); the wave rides on top of it
+  function wave(x, z, time) {
+    return Math.sin(x * 0.0016 + time) * 17
+         + Math.cos(z * 0.0034 - time * 0.62) * 17
+         + Math.sin((x + z) * 0.0011 + time * 0.4) * 9;
+  }
+
+  function project(x, z, time) {
+    const f = FOCAL / z;
+    return {
+      x: W / 2 + x * f,
+      y: horizon + (CAM_Y + wave(x, z, time)) * f
+    };
+  }
+
+  function styleOf(prop) {
+    return getComputedStyle(document.documentElement).getPropertyValue(prop).trim();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.strokeStyle = styleOf('--mesh') || 'rgba(57,135,229,0.4)';
+    ctx.lineWidth = 1;
+
+    const pts = [];
+    for (let j = 0; j < ROWS; j++) {
+      const z = Z_NEAR + j * Z_STEP;
+      pts[j] = [];
+      for (let i = 0; i < COLS; i++) {
+        pts[j][i] = project((i - (COLS - 1) / 2) * X_STEP, z, t);
+      }
+    }
+
+    for (let j = 0; j < ROWS; j++) {
+      const z = Z_NEAR + j * Z_STEP;
+      // dissolve toward the horizon so the grid never terminates in a hard line
+      const fade = Math.max(0, 1 - (z - Z_NEAR) / FAR_FADE);
+      if (fade <= 0.01) continue;
+      ctx.globalAlpha = fade * fade;
+      for (let i = 0; i < COLS; i++) {
+        const p = pts[j][i];
+        if (i + 1 < COLS) {
+          const q = pts[j][i + 1];
+          ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke();
+        }
+        if (j + 1 < ROWS) {
+          const q = pts[j + 1][i];
+          ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke();
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  if (reduced) {
+    // one static frame — but it still has to follow the viewer's theme
+    draw();
+    window.addEventListener('resize', draw);
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+    new MutationObserver(draw).observe(document.documentElement, {
+      attributes: true, attributeFilter: ['data-theme']
+    });
+  } else {
+    (function loop() {
+      t += 0.006;
+      draw();
+      requestAnimationFrame(loop);
+    })();
+  }
+})();
+
+/* ---------------- helpers ---------------- */
+const SVGNS = 'http://www.w3.org/2000/svg';
+const el = (n, a = {}) => {
+  const e = document.createElementNS(SVGNS, n);
+  for (const k in a) e.setAttribute(k, a[k]);
+  return e;
+};
+const css = (p) => getComputedStyle(document.documentElement).getPropertyValue(p).trim();
+const money = (v) => '$' + v.toFixed(2);
+const pct = (v) => (v * 100).toFixed(0) + '%';
+
+// Round the axis out to a whole step (1/2/2.5/5/10 × 10ⁿ) so every gridline
+// sits exactly on the value its label claims.
+function niceScale(max, target, integer) {
+  if (!(max > 0)) return { max: integer ? 1 : 1, step: integer ? 1 : 0.25 };
+  const raw = max / target;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const norm = raw / mag;
+  let step = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10;
+  step *= mag;
+  if (integer) step = Math.max(1, Math.round(step));
+  return { max: Math.ceil(max / step) * step, step };
+}
+
+function median(arr) {
+  if (!arr.length) return 0;
+  const s = [...arr].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+// bar path with rounded cap on the DATA end only
+function barPath(x, y, w, h, r, dir) {
+  r = Math.max(0, Math.min(r, dir === 'right' ? w : h, dir === 'right' ? h / 2 : w / 2));
+  if (dir === 'right') {
+    return `M${x},${y} H${x + w - r} A${r},${r} 0 0 1 ${x + w},${y + r} V${y + h - r} A${r},${r} 0 0 1 ${x + w - r},${y + h} H${x} Z`;
+  }
+  // 'up': anchored at baseline y+h, rounded top
+  return `M${x},${y + h} V${y + r} A${r},${r} 0 0 1 ${x + r},${y} H${x + w - r} A${r},${r} 0 0 1 ${x + w},${y + r} V${y + h} Z`;
+}
+
+/* ---------------- tooltip ---------------- */
+const tip = document.getElementById('tip');
+function showTip(evt, title, rows) {
+  tip.innerHTML = `<div class="tip-t">${title}</div>` + rows.map(r => `<div class="tip-r">${r}</div>`).join('');
+  tip.style.opacity = '1';
+  moveTip(evt);
+}
+function moveTip(evt) {
+  const pad = 14;
+  const r = tip.getBoundingClientRect();
+  let x = evt.clientX + pad, y = evt.clientY + pad;
+  if (x + r.width > window.innerWidth - 8) x = evt.clientX - r.width - pad;
+  if (y + r.height > window.innerHeight - 8) y = evt.clientY - r.height - pad;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+function hideTip() { tip.style.opacity = '0'; }
+
+function attachTip(node, title, rows) {
+  node.style.cursor = 'default';
+  node.addEventListener('mouseenter', (e) => showTip(e, title, rows));
+  node.addEventListener('mousemove', moveTip);
+  node.addEventListener('mouseleave', hideTip);
+}
+
+function emptyState(mount, msg) {
+  mount.innerHTML = `<div class="empty">${msg}</div>`;
+}
+
+/* ---------------- chart: horizontal bars ---------------- */
+function hbar(mount, rows, opts = {}) {
+  mount.innerHTML = '';
+  if (!rows.length) return emptyState(mount, 'No data in this selection.');
+  const fmt = opts.fmt || ((v) => String(v));
+  const labelW = opts.labelW || 150;
+  const barH = 16, gap = 12;
+  const padR = 54, padT = 4, padB = 4;
+  const h = padT + rows.length * (barH + gap) - gap + padB;
+  const W = 640;
+  const plotW = W - labelW - padR;
+  const max = opts.max != null ? opts.max : Math.max(...rows.map(r => r.value), 0.0001);
+
+  const svg = el('svg', {
+    class: 'plot', viewBox: `0 0 ${W} ${h}`,
+    preserveAspectRatio: 'xMinYMin meet', height: h, role: 'img',
+    'aria-label': opts.aria || 'bar chart'
+  });
+
+  rows.forEach((r, i) => {
+    const y = padT + i * (barH + gap);
+    const w = max > 0 ? Math.max(1, (r.value / max) * plotW) : 1;
+
+    const lab = el('text', {
+      x: labelW - 10, y: y + barH / 2 + 4, 'text-anchor': 'end',
+      'font-size': 11, fill: css('--ink-2')
+    });
+    lab.textContent = r.label.length > 24 ? r.label.slice(0, 23) + '…' : r.label;
+    svg.appendChild(lab);
+
+    // track
+    svg.appendChild(el('rect', {
+      x: labelW, y, width: plotW, height: barH, rx: 4, fill: css('--series-1-soft')
+    }));
+
+    const bar = el('path', {
+      d: barPath(labelW, y, w, barH, 4, 'right'),
+      fill: r.color || css('--series-1')
+    });
+    svg.appendChild(bar);
+
+    const val = el('text', {
+      x: labelW + w + 8, y: y + barH / 2 + 4, 'text-anchor': 'start',
+      'font-size': 11, fill: css('--ink'), 'font-weight': 600
+    });
+    val.textContent = fmt(r.value, r);
+    svg.appendChild(val);
+
+    // hover target spans the full row
+    const hit = el('rect', { x: 0, y: y - gap / 2, width: W, height: barH + gap, fill: 'transparent' });
+    attachTip(hit, r.label, r.tip || [fmt(r.value, r)]);
+    svg.appendChild(hit);
+  });
+
+  mount.appendChild(svg);
+}
+
+/* ---------------- chart: vertical bars ---------------- */
+function vbar(mount, rows, opts = {}) {
+  mount.innerHTML = '';
+  if (!rows.length) return emptyState(mount, 'No data in this selection.');
+  const fmt = opts.fmt || ((v) => String(v));
+  const W = 560, H = 240;
+  const padL = 40, padR = 12, padT = 18, padB = 38;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const rawMax = opts.max != null ? opts.max : Math.max(...rows.map(r => r.value), 0.0001);
+  const sc = niceScale(rawMax, 4, opts.integer);
+  const max = sc.max;
+  const slot = plotW / rows.length;
+  const barW = Math.min(opts.barW || 46, slot - 2); // 2px surface gap between bars
+
+  const svg = el('svg', {
+    class: 'plot', viewBox: `0 0 ${W} ${H}`,
+    preserveAspectRatio: 'xMinYMin meet', role: 'img',
+    'aria-label': opts.aria || 'bar chart'
+  });
+
+  // gridlines land on whole steps of the nice scale
+  for (let v = 0; v <= max + 1e-9; v += sc.step) {
+    const y = padT + plotH - (v / max) * plotH;
+    svg.appendChild(el('line', {
+      x1: padL, x2: W - padR, y1: y, y2: y,
+      stroke: v === 0 ? css('--axis') : css('--grid'), 'stroke-width': 1
+    }));
+    const tk = el('text', {
+      x: padL - 8, y: y + 3.5, 'text-anchor': 'end',
+      'font-size': 10, fill: css('--ink-muted')
+    });
+    tk.textContent = opts.tickFmt ? opts.tickFmt(v) : String(Math.round(v));
+    svg.appendChild(tk);
+  }
+
+  rows.forEach((r, i) => {
+    const cx = padL + slot * i + slot / 2;
+    const bh = max > 0 ? Math.max(1, (r.value / max) * plotH) : 1;
+    const y = padT + plotH - bh;
+    const x = cx - barW / 2;
+
+    svg.appendChild(el('path', {
+      d: barPath(x, y, barW, bh, 4, 'up'),
+      fill: r.color || css('--series-1')
+    }));
+
+    const val = el('text', {
+      x: cx, y: y - 6, 'text-anchor': 'middle',
+      'font-size': 11, fill: css('--ink'), 'font-weight': 600
+    });
+    val.textContent = fmt(r.value, r);
+    svg.appendChild(val);
+
+    const lab = el('text', {
+      x: cx, y: H - padB + 16, 'text-anchor': 'middle',
+      'font-size': 10, fill: css('--ink-2')
+    });
+    lab.textContent = r.label;
+    svg.appendChild(lab);
+
+    if (r.sub) {
+      const sub = el('text', {
+        x: cx, y: H - padB + 28, 'text-anchor': 'middle',
+        'font-size': 9, fill: css('--ink-muted')
+      });
+      sub.textContent = r.sub;
+      svg.appendChild(sub);
+    }
+
+    const hit = el('rect', { x: padL + slot * i, y: padT, width: slot, height: plotH, fill: 'transparent' });
+    attachTip(hit, r.label, r.tip || [fmt(r.value, r)]);
+    svg.appendChild(hit);
+  });
+
+  mount.appendChild(svg);
+}
+
+/* ---------------- chart: histogram ---------------- */
+function histogram(mount, values, opts = {}) {
+  mount.innerHTML = '';
+  if (!values.length) return emptyState(mount, 'No placements in this selection.');
+  const W = 640, H = 230;
+  const padL = 34, padR = 12, padT = 20, padB = 36;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const lo = opts.lo, hi = opts.hi, step = opts.step;
+  const nb = Math.round((hi - lo) / step);
+  const bins = Array.from({ length: nb }, (_, i) => ({ lo: lo + i * step, hi: lo + (i + 1) * step, n: 0 }));
+  values.forEach(v => {
+    let i = Math.floor((v - lo) / step);
+    if (i < 0) i = 0;
+    if (i >= nb) i = nb - 1;
+    bins[i].n++;
+  });
+  const hsc = niceScale(Math.max(...bins.map(b => b.n), 1), 4, true);
+  const max = hsc.max;
+  const slot = plotW / nb;
+
+  const svg = el('svg', {
+    class: 'plot', viewBox: `0 0 ${W} ${H}`,
+    preserveAspectRatio: 'xMinYMin meet', role: 'img',
+    'aria-label': opts.aria || 'histogram'
+  });
+
+  for (let v = 0; v <= max + 1e-9; v += hsc.step) {
+    const y = padT + plotH - (v / max) * plotH;
+    svg.appendChild(el('line', {
+      x1: padL, x2: W - padR, y1: y, y2: y,
+      stroke: v === 0 ? css('--axis') : css('--grid'), 'stroke-width': 1
+    }));
+    const tk = el('text', { x: padL - 8, y: y + 3.5, 'text-anchor': 'end', 'font-size': 10, fill: css('--ink-muted') });
+    tk.textContent = String(Math.round(v));
+    svg.appendChild(tk);
+  }
+
+  bins.forEach((b, i) => {
+    const bw = Math.max(1, slot - 2); // 2px surface gap
+    const x = padL + slot * i + 1;
+    const bh = (b.n / max) * plotH;
+    const y = padT + plotH - bh;
+    if (b.n > 0) {
+      svg.appendChild(el('path', { d: barPath(x, y, bw, bh, 4, 'up'), fill: css('--series-1') }));
+    }
+    const hit = el('rect', { x: padL + slot * i, y: padT, width: slot, height: plotH, fill: 'transparent' });
+    attachTip(hit, `${money(b.lo)} – ${money(b.hi)}`, [`${b.n} placement${b.n === 1 ? '' : 's'}`]);
+    svg.appendChild(hit);
+  });
+
+  // x ticks every other bin edge
+  for (let i = 0; i <= nb; i += 2) {
+    const x = padL + slot * i;
+    const tk = el('text', { x, y: H - padB + 16, 'text-anchor': 'middle', 'font-size': 10, fill: css('--ink-2') });
+    tk.textContent = '$' + (lo + i * step);
+    svg.appendChild(tk);
+  }
+
+  // median marker
+  const med = median(values);
+  const mx = padL + ((med - lo) / (hi - lo)) * plotW;
+  svg.appendChild(el('line', {
+    x1: mx, x2: mx, y1: padT - 6, y2: padT + plotH,
+    stroke: css('--series-2'), 'stroke-width': 2, 'stroke-dasharray': '4 3'
+  }));
+  const ml = el('text', { x: mx, y: padT - 10, 'text-anchor': 'middle', 'font-size': 10, fill: css('--series-2'), 'font-weight': 700 });
+  ml.textContent = 'median ' + money(med);
+  svg.appendChild(ml);
+
+  mount.appendChild(svg);
+}
+
+/* ---------------- chart: donut ---------------- */
+function donut(mount, parts, opts = {}) {
+  mount.innerHTML = '';
+  const total = parts.reduce((s, p) => s + p.value, 0);
+  if (!total) return emptyState(mount, 'No participants in this selection.');
+  const S = 210, cx = S / 2, cy = S / 2, R = 82, r = 56;
+  const svg = el('svg', {
+    class: 'plot', viewBox: `0 0 ${S} ${S}`, height: S,
+    preserveAspectRatio: 'xMidYMid meet', role: 'img',
+    'aria-label': opts.aria || 'donut chart'
+  });
+
+  const GAP = 0.022; // ~2px surface gap between segments
+  let a0 = -Math.PI / 2;
+  parts.forEach(p => {
+    if (p.value <= 0) return;
+    const frac = p.value / total;
+    const full = frac * Math.PI * 2;
+    const pad = parts.filter(x => x.value > 0).length > 1 ? GAP : 0;
+    const a1 = a0 + full;
+    const s = a0 + pad / 2, e = a1 - pad / 2;
+    if (e > s) {
+      const large = (e - s) > Math.PI ? 1 : 0;
+      const d = [
+        `M${cx + R * Math.cos(s)},${cy + R * Math.sin(s)}`,
+        `A${R},${R} 0 ${large} 1 ${cx + R * Math.cos(e)},${cy + R * Math.sin(e)}`,
+        `L${cx + r * Math.cos(e)},${cy + r * Math.sin(e)}`,
+        `A${r},${r} 0 ${large} 0 ${cx + r * Math.cos(s)},${cy + r * Math.sin(s)}`,
+        'Z'
+      ].join(' ');
+      const seg = el('path', { d, fill: p.color });
+      attachTip(seg, p.label, [`${p.value} of ${total} · ${pct(frac)}`]);
+      svg.appendChild(seg);
+    }
+    a0 = a1;
+  });
+
+  const big = el('text', {
+    x: cx, y: cy - 2, 'text-anchor': 'middle',
+    'font-size': 30, 'font-weight': 700, fill: css('--ink'),
+    'letter-spacing': '-0.03em'
+  });
+  big.textContent = pct(parts[0].value / total);
+  svg.appendChild(big);
+  const sub = el('text', { x: cx, y: cy + 17, 'text-anchor': 'middle', 'font-size': 10, fill: css('--ink-muted') });
+  sub.textContent = 'placed';
+  svg.appendChild(sub);
+  mount.appendChild(svg);
+
+  const leg = document.createElement('div');
+  leg.className = 'legend';
+  leg.style.justifyContent = 'center';
+  parts.forEach(p => {
+    const i = document.createElement('span');
+    i.className = 'legend-item';
+    i.innerHTML = `<span class="swatch" style="background:${p.color}"></span>${p.label} · ${p.value}`;
+    leg.appendChild(i);
+  });
+  mount.appendChild(leg);
+}
+
+/* ---------------- filters ---------------- */
+const AGE_BANDS = [
+  { label: '19–24', lo: 19, hi: 24 },
+  { label: '25–34', lo: 25, hi: 34 },
+  { label: '35–44', lo: 35, hi: 44 },
+  { label: '45–54', lo: 45, hi: 54 },
+  { label: '55+', lo: 55, hi: 200 }
+];
+const bandOf = (age) => (AGE_BANDS.find(b => age >= b.lo && age <= b.hi) || {}).label || '—';
+DATA.forEach(d => { d.ageBand = bandOf(d.age); });
+
+const SHORT_IND = {
+  'Transportation, Distribution and Logistics (includes warehouse)': 'Transportation & logistics',
+  'Service Sector (includes retail, restaurant and hospitality)': 'Retail, food & hospitality',
+  'Other nonprofit / social services': 'Nonprofit / social services',
+  'Education and Child-Care': 'Education & child care',
+  'Business and Administration': 'Business & admin',
+  'Health Care': 'Health care'
+};
+const shortInd = (s) => SHORT_IND[s] || s;
+
+const FILTERS = ['subsidy', 'race', 'member', 'disability', 'ageBand'];
+// One Set per filter. Empty Set means "no restriction" — values inside a filter are
+// OR'd (Black OR White), and the filters themselves are AND'd together.
+const state = Object.fromEntries(FILTERS.map(k => [k, new Set()]));
+
+const matches = (d, skip) => FILTERS.every(k => k === skip || !state[k].size || state[k].has(d[k]));
+const applyFilters = () => DATA.filter(d => matches(d));
+
+function valuesFor(key) {
+  const counts = new Map();
+  DATA.forEach(d => counts.set(d[key], (counts.get(d[key]) || 0) + 1));
+  let keys = [...counts.keys()];
+  if (key === 'ageBand') keys = AGE_BANDS.map(b => b.label).filter(l => counts.has(l));
+  else keys.sort((a, b) => counts.get(b) - counts.get(a) || String(a).localeCompare(String(b)));
+  return keys;
+}
+
+function buildFilters() {
+  document.querySelectorAll('.ms[data-key]').forEach(ms => {
+    const key = ms.dataset.key;
+    const labelText = ms.dataset.label;
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ms-btn';
+    btn.setAttribute('aria-expanded', 'false');
+    btn.setAttribute('aria-haspopup', 'true');
+    btn.innerHTML = `<span class="ms-val"></span><span class="ms-n" hidden></span><span class="ms-caret" aria-hidden="true"></span>`;
+
+    const pop = document.createElement('div');
+    pop.className = 'ms-pop';
+    pop.hidden = true;
+    pop.setAttribute('role', 'group');
+    pop.setAttribute('aria-label', labelText);
+
+    const head = document.createElement('div');
+    head.className = 'ms-head';
+    head.innerHTML = `<span>${labelText}</span>`;
+    const clear = document.createElement('button');
+    clear.type = 'button';
+    clear.className = 'ms-clear';
+    clear.textContent = 'Clear';
+    clear.addEventListener('click', () => { state[key].clear(); syncAll(); render(); });
+    head.appendChild(clear);
+    pop.appendChild(head);
+
+    const list = document.createElement('div');
+    list.className = 'ms-list';
+    valuesFor(key).forEach(v => {
+      const row = document.createElement('label');
+      row.className = 'ms-opt';
+      row.dataset.value = v;
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.value = v;
+      cb.addEventListener('change', () => {
+        cb.checked ? state[key].add(v) : state[key].delete(v);
+        syncAll(); render();
+      });
+      const l = document.createElement('span');
+      l.className = 'ms-opt-l';
+      l.textContent = v;
+      const n = document.createElement('span');
+      n.className = 'ms-opt-n';
+      row.append(cb, l, n);
+      list.appendChild(row);
+    });
+    pop.appendChild(list);
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = pop.hidden;
+      closeAllPops();
+      pop.hidden = !open;
+      btn.setAttribute('aria-expanded', String(open));
+    });
+    pop.addEventListener('click', (e) => e.stopPropagation());
+
+    ms.append(btn, pop);
+  });
+
+  // click-away and Escape close any open popover
+  document.addEventListener('click', closeAllPops);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeAllPops();
+  });
+
+  document.getElementById('reset').addEventListener('click', () => {
+    FILTERS.forEach(k => state[k].clear());
+    syncAll(); render();
+  });
+
+  syncAll();
+}
+
+function closeAllPops() {
+  document.querySelectorAll('.ms-pop').forEach(p => p.hidden = true);
+  document.querySelectorAll('.ms-btn').forEach(b => b.setAttribute('aria-expanded', 'false'));
+}
+
+// Reflect state into every control: button summary, checkboxes, live counts, chips.
+function syncAll() {
+  document.querySelectorAll('.ms[data-key]').forEach(ms => {
+    const key = ms.dataset.key;
+    const sel = state[key];
+    const btn = ms.querySelector('.ms-btn');
+    const val = ms.querySelector('.ms-val');
+    const nBadge = ms.querySelector('.ms-n');
+
+    if (!sel.size) val.textContent = `All (${DATA.length})`;
+    else if (sel.size === 1) val.textContent = [...sel][0];
+    else val.textContent = `${sel.size} selected`;
+
+    nBadge.hidden = sel.size < 2;
+    nBadge.textContent = String(sel.size);
+    btn.classList.toggle('is-set', sel.size > 0);
+    ms.querySelector('.ms-clear').disabled = !sel.size;
+
+    // each option's count reflects the OTHER filters in play, so the numbers
+    // predict what you'd actually get by ticking it
+    ms.querySelectorAll('.ms-opt').forEach(row => {
+      const v = row.dataset.value;
+      const cb = row.querySelector('input');
+      cb.checked = sel.has(v);
+      const n = DATA.filter(d => d[key] === v && matches(d, key)).length;
+      row.querySelector('.ms-opt-n').textContent = String(n);
+      row.classList.toggle('is-void', n === 0);
+    });
+  });
+  renderChips();
+}
+
+function renderChips() {
+  const mount = document.getElementById('chips');
+  mount.innerHTML = '';
+  const LABELS = { subsidy: 'Subsidy', race: 'Race', member: 'Role', disability: 'Disability', ageBand: 'Age' };
+  FILTERS.forEach(k => {
+    state[k].forEach(v => {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.innerHTML = `<span class="chip-k">${LABELS[k]}</span><span>${v}</span>`;
+      const x = document.createElement('button');
+      x.type = 'button';
+      x.className = 'chip-x';
+      x.setAttribute('aria-label', `Remove ${LABELS[k]} filter ${v}`);
+      x.textContent = '×';
+      x.addEventListener('click', () => { state[k].delete(v); syncAll(); render(); });
+      chip.appendChild(x);
+      mount.appendChild(chip);
+    });
+  });
+}
+
+/* ---------------- render ---------------- */
+function groupRate(rows, key, minN, labelFn) {
+  const g = new Map();
+  rows.forEach(d => {
+    const k = d[key];
+    if (!g.has(k)) g.set(k, { n: 0, placed: 0 });
+    const o = g.get(k);
+    o.n++; if (d.placed) o.placed++;
+  });
+  return [...g.entries()]
+    .filter(([, v]) => v.n >= minN)
+    .map(([k, v]) => ({
+      label: labelFn ? labelFn(k) : k,
+      value: v.placed / v.n,
+      n: v.n, placed: v.placed,
+      tip: [`${v.placed} of ${v.n} placed · ${pct(v.placed / v.n)}`]
+    }))
+    .sort((a, b) => b.value - a.value);
+}
+
+function render() {
+  const rows = applyFilters();
+  const placed = rows.filter(d => d.placed);
+  const wages = placed.map(d => d.wage);
+
+  // count
+  document.getElementById('count').innerHTML =
+    `<b>${rows.length}</b> of ${DATA.length} participants`;
+
+  // KPIs
+  const ft = placed.filter(d => d.fulltime).length;
+  const kpis = [
+    { label: 'Participants', value: String(rows.length), note: `${DATA.length} enrolled overall` },
+    { label: 'Placement rate', value: rows.length ? pct(placed.length / rows.length) : '—', note: `${placed.length} placed` },
+    { label: 'Median wage', value: wages.length ? money(median(wages)) : '—', note: wages.length ? `${money(Math.min(...wages))}–${money(Math.max(...wages))} range` : 'no placements' },
+    { label: 'Full-time share', value: placed.length ? pct(ft / placed.length) : '—', note: placed.length ? `${ft} at 32+ hrs/week` : 'no placements' }
+  ];
+  document.getElementById('kpis').innerHTML = kpis.map(k => `
+    <div class="kpi">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-note">${k.note}</div>
+    </div>`).join('');
+
+  // 1. status donut
+  donut(document.getElementById('c-status'), [
+    { label: 'Placed', value: placed.length, color: css('--series-1') },
+    { label: 'Not placed', value: rows.length - placed.length, color: css('--rest') }
+  ], { aria: 'Placement status donut chart' });
+
+  // 2. wage histogram
+  histogram(document.getElementById('c-wage'), wages, {
+    lo: 14, hi: 38, step: 2, aria: 'Hourly wage distribution histogram'
+  });
+
+  // 3. placements by industry
+  const indCount = new Map();
+  placed.forEach(d => indCount.set(d.industry, (indCount.get(d.industry) || 0) + 1));
+  hbar(document.getElementById('c-industry'),
+    [...indCount.entries()]
+      .map(([k, v]) => ({
+        label: shortInd(k), value: v,
+        tip: [`${v} placement${v === 1 ? '' : 's'} · ${pct(v / Math.max(placed.length, 1))} of placements`]
+      }))
+      .sort((a, b) => b.value - a.value),
+    { fmt: (v) => String(v), labelW: 168, aria: 'Placements by industry' });
+
+  // 4. median wage by industry (2+ placements)
+  const indWage = new Map();
+  placed.forEach(d => {
+    if (!indWage.has(d.industry)) indWage.set(d.industry, []);
+    indWage.get(d.industry).push(d.wage);
+  });
+  hbar(document.getElementById('c-indwage'),
+    [...indWage.entries()]
+      .filter(([, ws]) => ws.length >= 2)
+      .map(([k, ws]) => ({
+        label: shortInd(k), value: median(ws),
+        tip: [`median ${money(median(ws))}`, `${ws.length} placements · ${money(Math.min(...ws))}–${money(Math.max(...ws))}`]
+      }))
+      .sort((a, b) => b.value - a.value),
+    { fmt: (v) => money(v), labelW: 168, aria: 'Median wage by industry' });
+
+  // 5. placement rate by race (2+ participants)
+  hbar(document.getElementById('c-race'),
+    groupRate(rows, 'race', 2, (k) => k.length > 24 ? k.split(';')[0] : k),
+    { fmt: (v, r) => `${pct(v)}  (${r.placed}/${r.n})`, max: 1, labelW: 168, aria: 'Placement rate by race' });
+
+  // 6. placement rate by age band
+  const ageRows = AGE_BANDS.map(b => {
+    const sub = rows.filter(d => d.ageBand === b.label);
+    const p = sub.filter(d => d.placed).length;
+    return sub.length ? {
+      label: b.label, value: p / sub.length, sub: `n=${sub.length}`,
+      tip: [`${p} of ${sub.length} placed · ${pct(p / sub.length)}`]
+    } : null;
+  }).filter(Boolean);
+  vbar(document.getElementById('c-age'), ageRows, {
+    fmt: (v) => pct(v), max: 1, tickFmt: (v) => pct(v), aria: 'Placement rate by age band'
+  });
+
+  // 7. placement starts by year
+  const yrs = new Map();
+  placed.forEach(d => { if (d.startYear) yrs.set(d.startYear, (yrs.get(d.startYear) || 0) + 1); });
+  vbar(document.getElementById('c-year'),
+    [...yrs.entries()].sort((a, b) => a[0] - b[0]).map(([y, n]) => ({
+      label: String(y), value: n,
+      tip: [`${n} placement${n === 1 ? '' : 's'} started`]
+    })),
+    { integer: true, aria: 'Placement starts by year' });
+
+  // 8. job quality
+  const q = [
+    { label: 'Full-time (32+ hrs)', n: placed.filter(d => d.fulltime).length },
+    { label: 'Permanent (not temp)', n: placed.filter(d => d.temp === 'No').length },
+    { label: 'Employer health care', n: placed.filter(d => d.healthcare === 'Yes').length },
+    { label: 'Still active', n: placed.filter(d => d.active).length }
+  ];
+  hbar(document.getElementById('c-quality'),
+    placed.length ? q.map(x => ({
+      label: x.label, value: x.n / placed.length,
+      tip: [`${x.n} of ${placed.length} placements · ${pct(x.n / placed.length)}`]
+    })) : [],
+    { fmt: (v, r) => pct(v), max: 1, labelW: 168, aria: 'Job quality indicators' });
+
+  // table
+  renderTable(rows);
+}
+
+function renderTable(rows) {
+  const mount = document.getElementById('c-table');
+  if (!rows.length) return emptyState(mount, 'No participants match these filters.');
+  const yn = (v) => v === 'Yes'
+    ? '<span class="pill pill-yes">Yes</span>'
+    : '<span class="pill pill-no">No</span>';
+  mount.innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Name</th><th>Age</th><th>Race</th><th>Subsidy</th><th>Household role</th>
+        <th>Disability</th><th>Placed</th><th>Wage</th><th>Hours</th><th>Industry</th><th>Job title</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(d => `
+          <tr>
+            <td>${d.name}</td>
+            <td class="num">${d.age}</td>
+            <td>${d.race}</td>
+            <td>${d.subsidy}</td>
+            <td>${d.member}</td>
+            <td>${yn(d.disability)}</td>
+            <td>${d.placed ? '<span class="pill pill-yes">Placed</span>' : '<span class="pill pill-no">—</span>'}</td>
+            <td class="num">${d.placed ? money(d.wage) : '—'}</td>
+            <td>${d.placed ? (d.fulltime ? 'Full-time' : 'Part-time') : '—'}</td>
+            <td>${d.placed ? shortInd(d.industry) : '—'}</td>
+            <td>${d.placed ? d.title : '—'}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+buildFilters();
+render();
+
+/* ---------------- chart assistant ----------------
+   Talks to /api/chat on the local server (serve.py), which holds the Groq key.
+   The key is never in this file. When the page is opened without that server
+   — straight from disk, or published — /api/health fails and the assistant
+   simply never mounts, rather than showing a button that cannot work.        */
+(function () {
+  const fab = document.getElementById('fab');
+  const panel = document.getElementById('chat');
+  const log = document.getElementById('chat-log');
+  const form = document.getElementById('chat-form');
+  const input = document.getElementById('chat-in');
+  const send = document.getElementById('chat-send');
+  const fileInput = document.getElementById('chat-file');
+  const attachBtn = document.getElementById('chat-attach');
+  const attachRow = document.getElementById('attach-row');
+
+  let attached = null;   // { dataUrl, name }
+  let history = [];      // Groq-shaped messages
+  let busy = false;
+
+  const SYSTEM = [
+    'You are a data analyst embedded in the JobLink employment-placement dashboard.',
+    'The user sends screenshots of its charts and asks about them. Read the chart carefully and answer from what is actually visible.',
+    '',
+    'Dashboard background:',
+    '- 104 people enrolled in JobLink, a housing-authority employment program; 49 of them were placed in a job (47%). Reporting period Sept 2022.',
+    '- Every chart is filtered by the cohort filters (subsidy type, race, household role, verified disability, age band).',
+    '- Wages are STARTING hourly rates recorded at placement, spanning 2019-2022, not inflation-adjusted. Do not treat them as current pay.',
+    '- Rates over small groups are noisy. If a bar rests on a handful of people, say so — the n is usually printed in the label.',
+    '',
+    'Rules:',
+    '- State the numbers you can actually see. If a value is cut off, blurry, or ambiguous, say so instead of guessing.',
+    '- The live dashboard state below is ground truth. If the screenshot disagrees with it, the screenshot is probably of a different filter selection — say that rather than silently picking one.',
+    '- Be concise and concrete. No preamble.'
+  ].join('\n');
+
+  function liveContext() {
+    const rows = applyFilters();
+    const placed = rows.filter(d => d.placed);
+    const wages = placed.map(d => d.wage);
+    const active = FILTERS
+      .filter(k => state[k].size)
+      .map(k => `${k} = ${[...state[k]].join(' OR ')}`);
+    const lines = [
+      'Filters active right now: ' + (active.length ? active.join('; ') : 'none (full 104-person cohort)'),
+      `Participants in view: ${rows.length} of ${DATA.length}`,
+      `Placed: ${placed.length}` + (rows.length ? ` (${pct(placed.length / rows.length)})` : '')
+    ];
+    if (wages.length) {
+      lines.push(`Wages in view: median ${money(median(wages))}, range ${money(Math.min(...wages))}-${money(Math.max(...wages))}`);
+      lines.push(`Full-time (32+ hrs): ${placed.filter(d => d.fulltime).length} of ${placed.length}`);
+    }
+    return lines.join('\n');
+  }
+
+  // escape first, then apply a tiny subset of markdown — never inject raw model output
+  function fmt(s) {
+    const esc = String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return esc
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\n/g, '<br>');
+  }
+
+  function bubble(role, html, cls) {
+    const wrap = document.createElement('div');
+    wrap.className = 'msg ' + role + (cls ? ' ' + cls : '');
+    wrap.innerHTML = html;
+    log.appendChild(wrap);
+    log.scrollTop = log.scrollHeight;
+    return wrap;
+  }
+
+  function emptyState() {
+    log.innerHTML = `<div class="chat-empty">
+      Paste or drop a screenshot of any chart, then ask about it.<br><br>
+      <b>Try:</b> “Which industry pays the most, and how many people is that based on?”<br><br>
+      <kbd>⌘⇧4</kbd> to grab a region, then <kbd>⌘V</kbd> here.
+    </div>`;
+  }
+
+  // Screenshots are big; Groq caps base64 payloads. Downscale before sending.
+  function downscale(file, maxDim = 1600, quality = 0.85) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let w = img.naturalWidth, h = img.naturalHeight;
+        const s = Math.min(1, maxDim / Math.max(w, h));
+        w = Math.max(1, Math.round(w * s));
+        h = Math.max(1, Math.round(h * s));
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(c.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('That file could not be read as an image.')); };
+      img.src = url;
+    });
+  }
+
+  async function attach(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    try {
+      attached = { dataUrl: await downscale(file), name: file.name || 'screenshot.png' };
+      drawAttachment();
+      syncSend();
+      input.focus();
+    } catch (e) {
+      bubble('bot', `<div class="msg-b">${fmt(e.message)}</div>`, 'err');
+    }
+  }
+
+  function drawAttachment() {
+    if (!attached) { attachRow.hidden = true; attachRow.innerHTML = ''; return; }
+    attachRow.hidden = false;
+    attachRow.innerHTML = '';
+    const chip = document.createElement('span');
+    chip.className = 'attach-chip';
+    chip.innerHTML = `<img src="${attached.dataUrl}" alt=""><span>${fmt(attached.name)}</span>`;
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'chip-x';
+    x.textContent = '×';
+    x.setAttribute('aria-label', 'Remove the attached screenshot');
+    x.addEventListener('click', () => { attached = null; drawAttachment(); syncSend(); });
+    chip.appendChild(x);
+    attachRow.appendChild(chip);
+  }
+
+  const syncSend = () => { send.disabled = busy || (!input.value.trim() && !attached); };
+
+  async function ask(e) {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (busy || (!text && !attached)) return;
+
+    if (log.querySelector('.chat-empty')) log.innerHTML = '';
+
+    const shot = attached;
+    bubble('user',
+      (shot ? `<img class="shot" src="${shot.dataUrl}" alt="Attached screenshot">` : '') +
+      (text ? `<div class="msg-b">${fmt(text)}</div>` : ''));
+
+    // the image rides along with the turn it was attached to, so follow-up
+    // questions about the same screenshot keep working
+    const content = shot
+      ? [{ type: 'text', text: text || 'What does this chart show?' },
+         { type: 'image_url', image_url: { url: shot.dataUrl } }]
+      : text;
+    history.push({ role: 'user', content });
+
+    input.value = '';
+    input.style.height = 'auto';
+    attached = null;
+    drawAttachment();
+    busy = true;
+    syncSend();
+
+    const think = bubble('bot', `<div class="msg-b"><span class="dots"><i></i><i></i><i></i></span></div>`);
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [
+            { role: 'system', content: SYSTEM + '\n\nLive dashboard state:\n' + liveContext() },
+            ...history.slice(-8)
+          ]
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+      think.querySelector('.msg-b').innerHTML = fmt(data.reply);
+      history.push({ role: 'assistant', content: data.reply });
+      if (data.usage && data.usage.total_tokens) {
+        const m = document.createElement('div');
+        m.className = 'msg-meta';
+        m.textContent = data.usage.total_tokens + ' tokens';
+        think.appendChild(m);
+      }
+    } catch (err) {
+      think.classList.add('err');
+      think.querySelector('.msg-b').innerHTML = fmt(err.message);
+      history.pop(); // don't leave a question in history with no answer
+    } finally {
+      busy = false;
+      syncSend();
+      log.scrollTop = log.scrollHeight;
+    }
+  }
+
+  function open(v) {
+    panel.classList.toggle('on', v);
+    fab.setAttribute('aria-expanded', String(v));
+    if (v) input.focus();
+  }
+
+  // --- wiring ---
+  form.addEventListener('submit', ask);
+  fab.addEventListener('click', () => open(!panel.classList.contains('on')));
+  document.getElementById('chat-x').addEventListener('click', () => open(false));
+  attachBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => { attach(fileInput.files[0]); fileInput.value = ''; });
+
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 96) + 'px';
+    syncSend();
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
+  });
+
+  // paste a screenshot straight in
+  panel.addEventListener('paste', (e) => {
+    const item = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith('image/'));
+    if (item) { e.preventDefault(); attach(item.getAsFile()); }
+  });
+
+  // drag and drop onto the panel
+  ['dragenter', 'dragover'].forEach(t => panel.addEventListener(t, (e) => {
+    e.preventDefault(); panel.classList.add('drag');
+  }));
+  ['dragleave', 'drop'].forEach(t => panel.addEventListener(t, (e) => {
+    e.preventDefault();
+    if (t === 'drop') attach(e.dataTransfer.files[0]);
+    if (t === 'dragleave' && panel.contains(e.relatedTarget)) return;
+    panel.classList.remove('drag');
+  }));
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && panel.classList.contains('on')) open(false);
+  });
+
+  // Mount only if the local proxy is actually there and holding a key.
+  (async () => {
+    try {
+      const r = await fetch('/api/health');
+      if (!r.ok) return;
+      const h = await r.json();
+      if (!h.ok) return;
+      document.getElementById('chat-model').textContent = (h.model || '').split('/').pop().split('-').slice(0, 3).join(' ');
+      emptyState();
+      fab.classList.add('on');
+    } catch (_) {
+      /* no server → no assistant; the dashboard is unaffected */
+    }
+  })();
+})();
+
+// repaint charts when the viewer flips theme (tokens change → re-read via css())
+const mq = window.matchMedia('(prefers-color-scheme: dark)');
+mq.addEventListener('change', render);
+new MutationObserver(render).observe(document.documentElement, {
+  attributes: true, attributeFilter: ['data-theme']
+});
+</script>
+
+</body>
+</html>

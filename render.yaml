@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: joblink-dashboard
+    runtime: python
+    plan: free
+    buildCommand: "true"
+    startCommand: python serve.py
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: GROQ_API_KEY
+        sync: false
