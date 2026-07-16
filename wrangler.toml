@@ -1,0 +1,8 @@
+name = "joblink-dashboard"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+[assets]
+directory = "."
+# API routes must reach the Worker even though assets are checked first
+run_worker_first = ["/api/*"]

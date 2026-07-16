@@ -1,0 +1,13 @@
+# only index.html (and nothing sensitive) is uploaded as a static asset
+serve.py
+worker.js
+wrangler.toml
+render.yaml
+requirements.txt
+README.md
+dashboard.html
+*.xlsx
+.git
+.github
+.gitignore
+.assetsignore

@@ -18,10 +18,20 @@ with a screenshot-reading chart assistant powered by Groq.
 - **GitHub Pages** (always on, no assistant): the repo's Pages URL serves
   `index.html` — every chart and filter works; the chat assistant stays hidden
   because there is no server holding a key.
-- **Render** (always on, WITH assistant): click "New +" → "Blueprint" at
-  https://dashboard.render.com, point it at this repo, and set `GROQ_API_KEY`
-  when prompted. Free tier works (the service sleeps when idle and wakes on
-  visit).
+- **Cloudflare Workers** (always on, WITH assistant, no sleep — recommended):
+  `worker.js` + `wrangler.toml` deploy the page and the Groq proxy together.
+  From the repo folder, one-time setup:
+
+  ```bash
+  npx wrangler login                      # opens browser; free account is fine
+  npx wrangler deploy                     # prints your permanent *.workers.dev URL
+  npx wrangler secret put GROQ_API_KEY    # paste the key when prompted
+  ```
+
+  Free plan: static page unlimited, 100k API requests/day, no cold starts.
+- **Render** (always on, WITH assistant, but free tier sleeps after 15 idle
+  minutes and takes ~1 min to wake): "New +" → "Blueprint" at
+  https://dashboard.render.com, point it at this repo, set `GROQ_API_KEY`.
 
 ## Running it with the assistant
 
